@@ -1,6 +1,7 @@
 {
   "name": "tic-tac-toe-client",
   "version": "0.1.0",
+  "author": "danjungs",
   "private": true,
   "dependencies": {
     "cra-template": "1.2.0",
@@ -10,6 +11,9 @@
     "react-router-dom": "^6.11.0",
     "react-scripts": "5.0.1",
     "socket.io-client": "^4.6.1"
+  },
+  "devDependencies": {
+    "web-vitals": "^3.3.1"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -34,8 +38,5 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  },
-  "devDependencies": {
-    "web-vitals": "^3.3.1"
   }
 }

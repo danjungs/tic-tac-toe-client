@@ -2,72 +2,87 @@ import React, { useEffect, useState } from 'react'
 import './game-room.scss';
 import { GAME_CONFIG } from './game-room.constants';
 
-const player_1 = GAME_CONFIG.player_1;
-const player_2 = GAME_CONFIG.player_2
-
-export default function GameRoom() {
+export default function GameRoom({ username, room, socket }) {
+  const [gameOverText, setGameOverText] = useState('')
+  const [myTurn, setMyTurn] = useState(false);
+  const [symbol, setSymbol] = useState('');
   const [board, setBoard] = useState(GAME_CONFIG.initBoardState);
-  // const [gameOver, setGameOver] = useState(false);
-  // const [gameStart, setGameStart] = useState(false);
   const [gameState, setGameState] = useState(GAME_CONFIG.initGameState)
-  const updateGame = (row,col) => {
-    if((gameState.gameOver || !gameState.gameStart) || board[row][col] != '') {
+
+
+  const makeMove = (row,col) => {
+    if(!gameState.ongoing || board[row][col] !== '' || !myTurn) {
+      console.log('disabilitaod')
       return;
     }
-    const turnBoard = JSON.parse(JSON.stringify(board));
-    const updateSymbol = player_1.turn ? player_1.symbol : player_2.symbol;
-    turnBoard[row][col] = updateSymbol;
-    setBoard(turnBoard);
-    updateTurn();
-  }
-  const updateTurn = () => {
-    player_1.turn = !player_1.turn
-    player_2.turn = !player_2.turn
-  }
-
-  const startGame = () => {
-    setBoard(GAME_CONFIG.initBoardState)
-    const state = JSON.parse(JSON.stringify(GAME_CONFIG.initGameState));
-    player_1.turn = true;
-    player_2.turn = false;
-    state.gameStart = true;
-    setGameState(state)
-    // setGameStart(true);
-    // setGameOver(false)
-  }
-
-  const setGameOver = () => {
-    const state = JSON.parse(JSON.stringify(gameState))
-    state.gameOver = true;
-    const win = GAME_CONFIG.checkWin(board);
-    if (win) {
-      state.winner = win === 'XXX' ? 'player_1' : 'player_2'
-    }
-    setGameState(state);
+    socket.emit('make_move', {room, symbol, position: {row, col}})
   }
 
   useEffect(() => {
-    const isGameOver = () => {
-      // const gameOverPositions = GAME_CONFIG.setGameoverPositions(board);
-      // const gameOver = gameOverPositions.some(el => el === 'XXX' || el === 'OOO');
-      if (GAME_CONFIG.checkWin(board)) {
+    const startGame = (data) => {
+      setBoard(GAME_CONFIG.initBoardState)
+      const state = JSON.parse(JSON.stringify(gameState))
+      state.ongoing = true;
+      setGameState(state);
+      const player = data.find(el => el.username === username)
+      setSymbol(player.symbol);
+      setMyTurn(player.symbol === 'X');
+    }
+    const updateGame = (data) => {
+      const { position } = data;
+      const turnBoard = JSON.parse(JSON.stringify(board));
+      turnBoard[position.row][position.col] = data.symbol;
+      setBoard(turnBoard);
+      if(isGameOver(turnBoard)) {
+        setGameOver(turnBoard);
+        
+        return;
+      }
+      updateTurn(data);
+    }
+    const updateTurn = (data) => {
+      const turn = symbol !== data.symbol;
+      setMyTurn(turn)
+    }
+    const isGameOver = (turnBoard) => {
+      console.log(turnBoard)
+      if (GAME_CONFIG.checkWinner(turnBoard)) {
         return true;
       };
-      const draw = !(board.some(row => row.some(el => el === '')));
+      const draw = !(turnBoard.some(row => row.some(el => el === '')));
       return draw;
     }
-    if(isGameOver()) {
-      setGameOver(true);
-    }
-  }, [board])
-  
+    const setGameOver = (turnBoard) => {
+      const state = JSON.parse(JSON.stringify(gameState))
+      state.ongoing = false;
+      setGameState(state);
+      const winner = GAME_CONFIG.checkWinner(turnBoard);
+      if (winner) {
+        setGameOverText(winner[0] === symbol ? 'Você Ganhou :)' : 'Você Perdeu :(')
+        return;
+      }
+      setGameOverText('Deu velha :|')
+    } 
 
+    socket.on('begin_game', data => {
+      startGame(data);
+      console.log('Begin game')
+    });
+    socket.on('move_made', data => {
+      updateGame(data)
+    })
+    return () => {
+      socket.off('begin_game');
+      socket.off('move_made');
+    }
+  }, [socket, board, symbol, username, gameOverText, gameState, myTurn]);
+  
   return ( 
     <div className = 'game-room-container'>
       <div className = 'game-room-header'>
-        <span className='game-room-turn' hidden={!gameState.gameStart || gameState.gameOver}> É a vez de: {player_1.turn ? 'player_1' : 'player_2'}</span>
-        <span className='game-room-game-over' hidden={!gameState.gameOver}>GAME OVER</span>
-        <span hidden={!gameState.winner}>Vencedor: {gameState.winner}</span>
+        <span hidden={!gameState.ongoing}>MEU SIMBOLO É: {symbol}</span>
+        <span hidden={!gameState.ongoing}>MEU TURNO É {myTurn ? 'true': 'false'}</span>
+        <span>{gameOverText}</span>
       </div>
       <div className = 'game-room-board-container'>
         {
@@ -79,8 +94,8 @@ export default function GameRoom() {
                     id = { row + col }
                     className ='game-room-board-cel'
                     key = { row + col } 
-                    onClick={() => updateGame(row_i,col)}
-                    disabled={gameState.gameOver || !gameState.gameStart}  
+                    onClick={() => makeMove(row_i,col)}
+                    disabled={!gameState.ongoing}  
                   >
                     <span className='game-room-symbols'>{ board[row_i][col] }</span>
                   </div>
@@ -91,7 +106,6 @@ export default function GameRoom() {
         } 
       </div>
       <div className='game-room-button-container'>
-        <button onClick={startGame}>Começar Jogo</button>
       </div>
     </div>
   )
