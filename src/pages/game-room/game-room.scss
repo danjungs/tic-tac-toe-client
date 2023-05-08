@@ -5,9 +5,11 @@
   justify-content: center;
   align-items: center;
   .game-room-header {
-    display: flex;
-    flex-direction: column;
     padding: 20px;
+    width: 90vw;
+    max-width: 550px;
+    display: flex;
+    justify-content: space-between;
   }
   .game-room-board-container {
     width: 90vw;
@@ -33,8 +35,10 @@
       font-weight: bold;
     }
   }
-  .game-room-button-container {
+  .game-room-reset-container {
     padding: 20px;
+    display: flex;
+    flex-direction: column;
   }
 }
 

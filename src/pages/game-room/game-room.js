@@ -18,6 +18,11 @@ export default function GameRoom({ username, room, socket }) {
     socket.emit('make_move', {room, symbol, position: {row, col}})
   }
 
+  const resetGame = () => {
+    setGameState(oldState => ({ ...oldState, resetRequest: true}))
+    socket.emit('reset_request', {room, symbol})
+  }
+
   useEffect(() => {
     const startGame = (data) => {
       setBoard(GAME_CONFIG.initBoardState)
@@ -26,7 +31,7 @@ export default function GameRoom({ username, room, socket }) {
       setGameState(state);
       const player = data.find(el => el.username === username)
       setSymbol(player.symbol);
-      setMyTurn(player.symbol === 'X');
+      setMyTurn(player.symbol === GAME_CONFIG.startSymbol);
     }
     const updateGame = (data) => {
       const { position } = data;
@@ -45,7 +50,6 @@ export default function GameRoom({ username, room, socket }) {
       setMyTurn(turn)
     }
     const isGameOver = (turnBoard) => {
-      console.log(turnBoard)
       if (GAME_CONFIG.checkWinner(turnBoard)) {
         return true;
       };
@@ -63,6 +67,13 @@ export default function GameRoom({ username, room, socket }) {
       }
       setGameOverText('Deu velha :|')
     } 
+    const resetGame = (data) => {
+      startGame(data)
+      const state = JSON.parse(JSON.stringify(gameState))
+      delete state.resetRequest;
+      state.ongoing = true;
+      setGameState(state);
+    }
 
     socket.on('begin_game', data => {
       startGame(data);
@@ -71,18 +82,22 @@ export default function GameRoom({ username, room, socket }) {
     socket.on('move_made', data => {
       updateGame(data)
     })
+    socket.on('reset_game', data => {
+      resetGame(data.players)
+    })
     return () => {
       socket.off('begin_game');
       socket.off('move_made');
+      socket.off('reset_game');
     }
   }, [socket, board, symbol, username, gameOverText, gameState, myTurn]);
   
   return ( 
     <div className = 'game-room-container'>
       <div className = 'game-room-header'>
-        <span hidden={!gameState.ongoing}>MEU SIMBOLO É: {symbol}</span>
-        <span hidden={!gameState.ongoing}>MEU TURNO É {myTurn ? 'true': 'false'}</span>
-        <span>{gameOverText}</span>
+        <span className='game-room-header-symbol' hidden={!gameState.ongoing}>MEU SIMBOLO É: {symbol}</span>
+        <span className='game-room-header-turn' hidden={!gameState.ongoing || !myTurn}>SEU TURNO</span>
+        <span hidden={gameState.ongoing}>{gameOverText}</span>
       </div>
       <div className = 'game-room-board-container'>
         {
@@ -105,7 +120,9 @@ export default function GameRoom({ username, room, socket }) {
           })
         } 
       </div>
-      <div className='game-room-button-container'>
+      <div className='game-room-reset-container'>
+        <button hidden={gameState.ongoing} onClick={resetGame}>Recomeçar a partida</button>
+        <span hidden={!gameState.resetRequest}>Esperando adversário ...</span>
       </div>
     </div>
   )

@@ -2,7 +2,7 @@
 export const GAME_CONFIG = {
   rowsLabel: ['a', 'b', 'c'],
   colLabel: ['0', '1', '2'],
-
+  startSymbol: 'X',
   initBoardState: [
     ['', '', ''],
     ['', '', ''],
